@@ -29,6 +29,11 @@ func FailN(n int, err error) {
 	lastErr.Store(err.Error())
 }
 
+func fmtGo(cpuMsPer1k, allocsPerMsg, allocMBs float64, gcs uint64, gcCPUPct float64) string {
+	return fmt.Sprintf("cpu_ms/1k=%-6.1f allocs/msg=%-6.1f alloc_MB/s=%-6.1f gc/s=%-3d gc_cpu=%.1f%%",
+		cpuMsPer1k, allocsPerMsg, allocMBs, gcs, gcCPUPct)
+}
+
 func Run(ctx context.Context, stalling func() bool) {
 	start := time.Now()
 	ticker := time.NewTicker(time.Second)
@@ -36,6 +41,7 @@ func Run(ctx context.Context, stalling func() bool) {
 
 	var lastRecv, lastStored, lastFailed uint64
 	var m runtime.MemStats
+	gm := newGoMetrics()
 
 	for {
 		select {
@@ -57,7 +63,7 @@ func Run(ctx context.Context, stalling func() bool) {
 			stall = "  STALL"
 		}
 
-		fmt.Printf("t=%4ds  recv=%-9d recv/s=%-7d stored=%-9d stored/s=%-7d failed=%-7d dropped=%-8d queued=%-7d inflight=%-8d goroutines=%-8d heap=%7.1fMB sys=%7.1fMB%s\n",
+		fmt.Printf("t=%4ds  recv=%-9d recv/s=%-7d stored=%-9d stored/s=%-7d failed=%-7d dropped=%-8d queued=%-7d inflight=%-8d goroutines=%-8d heap=%7.1fMB sys=%7.1fMB %s%s\n",
 			int(time.Since(start).Seconds()),
 			recv, recv-lastRecv,
 			stored, stored-lastStored,
@@ -68,6 +74,7 @@ func Run(ctx context.Context, stalling func() bool) {
 			runtime.NumGoroutine(),
 			float64(m.HeapAlloc)/(1<<20),
 			float64(m.Sys)/(1<<20),
+			gm.line(stored-lastStored),
 			stall,
 		)
 

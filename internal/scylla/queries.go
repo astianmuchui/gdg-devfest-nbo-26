@@ -22,14 +22,17 @@ func scanAll(iter *gocql.Iter) ([]TelemetryRecord, error) {
 	return results, iter.Close()
 }
 
-func LogTelemetry(session *gocql.Session, r TelemetryRecord) error {
+func LogTelemetry(ctx context.Context, session *gocql.Session, r TelemetryRecord) error {
 	if r.CreatedAt.IsZero() {
 		r.CreatedAt = time.Now().UTC()
 	}
-	return session.Query(insertTelemetry,
+	q := session.Query(insertTelemetry,
 		r.DeviceID, r.CreatedAt, r.DeviceTS, r.UptimeS,
 		r.TempC, r.HumidityPct, r.AirQualityPPM, r.AirQualityV,
-	).Exec()
+	).WithContext(ctx)
+	err := q.Exec()
+	q.Release()
+	return err
 }
 
 func LogTelemetryBatch(ctx context.Context, s *gocql.Session, rows []TelemetryRecord) error {

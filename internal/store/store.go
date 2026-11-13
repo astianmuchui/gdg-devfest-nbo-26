@@ -18,7 +18,7 @@ func (Scylla) Save(ctx context.Context, rec scylla.TelemetryRecord) error {
 	if scylla.Session == nil {
 		return fmt.Errorf("scylla not connected")
 	}
-	return scylla.LogTelemetry(scylla.Session, rec)
+	return scylla.LogTelemetry(ctx, scylla.Session, rec)
 }
 
 func (Scylla) SaveBatch(ctx context.Context, rows []scylla.TelemetryRecord) error {
@@ -26,7 +26,7 @@ func (Scylla) SaveBatch(ctx context.Context, rows []scylla.TelemetryRecord) erro
 		return fmt.Errorf("scylla not connected")
 	}
 	if len(rows) == 1 {
-		return scylla.LogTelemetry(scylla.Session, rows[0])
+		return scylla.LogTelemetry(ctx, scylla.Session, rows[0])
 	}
 	return scylla.LogTelemetryBatch(ctx, scylla.Session, rows)
 }

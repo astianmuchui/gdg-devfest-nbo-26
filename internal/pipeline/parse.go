@@ -1,4 +1,4 @@
-package mqtt
+package pipeline
 
 import (
 	"encoding/json"
@@ -21,20 +21,29 @@ type readingsPayload struct {
 	} `json:"environment"`
 }
 
-func parseReading(topic string, raw []byte) (scylla.TelemetryRecord, error) {
+func DeviceFromTopic(topic string) string {
+	i := strings.IndexByte(topic, '/')
+	if i < 0 {
+		return ""
+	}
+	rest := topic[i+1:]
+	if j := strings.IndexByte(rest, '/'); j >= 0 {
+		return rest[:j]
+	}
+	return rest
+}
+
+func Parse(dev string, raw []byte) (scylla.TelemetryRecord, error) {
 	var p readingsPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return scylla.TelemetryRecord{}, fmt.Errorf("parseReading: %w", err)
+		return scylla.TelemetryRecord{}, fmt.Errorf("Parse: %w", err)
 	}
 
 	if p.DeviceID == "" {
-		parts := strings.Split(topic, "/")
-		if len(parts) >= 2 {
-			p.DeviceID = parts[1]
-		}
+		p.DeviceID = dev
 	}
 	if p.DeviceID == "" {
-		return scylla.TelemetryRecord{}, fmt.Errorf("parseReading: missing device_id")
+		return scylla.TelemetryRecord{}, fmt.Errorf("Parse: missing device_id")
 	}
 
 	return scylla.TelemetryRecord{

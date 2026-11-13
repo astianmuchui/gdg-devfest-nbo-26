@@ -22,11 +22,6 @@ var onConnectionLost pahomqtt.ConnectionLostHandler = func(client pahomqtt.Clien
 func NewMessageHandler(p *pipeline.Pipeline) pahomqtt.MessageHandler {
 	return func(_ pahomqtt.Client, msg pahomqtt.Message) {
 		report.Received.Add(1)
-		rec, err := parseReading(msg.Topic(), msg.Payload())
-		if err != nil {
-			report.Fail(err)
-			return
-		}
-		p.Submit(rec)
+		p.Submit(pipeline.DeviceFromTopic(msg.Topic()), msg.Payload())
 	}
 }

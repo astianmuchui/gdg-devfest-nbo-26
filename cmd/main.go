@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof"
 	"sync"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,6 +24,10 @@ import (
 
 func main() {
 	env.Load()
+
+	go func() {
+		log.Warnf("pprof: %v", http.ListenAndServe(env.GetPprofAddr(), nil))
+	}()
 
 	if _, err := scylla.Connect(); err != nil {
 		log.Warnf("ScyllaDB unavailable: %v", err)

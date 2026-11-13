@@ -41,6 +41,7 @@ func dur(key string, def time.Duration) time.Duration {
 }
 
 func GetHttpListenPort() int { return num("IOT_PORT", DEFAULT_PORT) }
+func GetPprofAddr() string   { return str("IOT_PPROF_ADDR", "localhost:6060") }
 
 func GetMQTTBroker() string   { return str("IOT_MQTT_BROKER", "localhost") }
 func GetMQTTPort() int        { return num("IOT_MQTT_PORT", 1883) }
