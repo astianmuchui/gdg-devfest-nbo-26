@@ -27,15 +27,30 @@ func (s *Stall) Active() bool {
 	return elapsed >= s.After && elapsed < s.After+s.For
 }
 
+func (s *Stall) wait(ctx context.Context) error {
+	if !s.Active() {
+		return nil
+	}
+	t := time.NewTimer(s.Delay)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
 func (s *Stall) Save(ctx context.Context, rec scylla.TelemetryRecord) error {
-	if s.Active() {
-		t := time.NewTimer(s.Delay)
-		select {
-		case <-ctx.Done():
-			t.Stop()
-			return ctx.Err()
-		case <-t.C:
-		}
+	if err := s.wait(ctx); err != nil {
+		return err
 	}
 	return s.Inner.Save(ctx, rec)
+}
+
+func (s *Stall) SaveBatch(ctx context.Context, rows []scylla.TelemetryRecord) error {
+	if err := s.wait(ctx); err != nil {
+		return err
+	}
+	return s.Inner.SaveBatch(ctx, rows)
 }

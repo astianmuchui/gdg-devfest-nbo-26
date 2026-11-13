@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/astianmuchui/supersimpleingestor/internal/env"
 	"github.com/astianmuchui/supersimpleingestor/internal/mqtt"
+	"github.com/astianmuchui/supersimpleingestor/internal/pipeline"
 	"github.com/astianmuchui/supersimpleingestor/internal/report"
 	"github.com/astianmuchui/supersimpleingestor/internal/routes"
 	"github.com/astianmuchui/supersimpleingestor/internal/scylla"
@@ -30,8 +32,14 @@ func main() {
 		log.Infof("stall: after %s, for %s, +%s per write", st.After, st.For, st.Delay)
 	}
 
+	p := pipeline.New(st, env.GetShards(), env.GetQueueDepth(),
+		env.GetBatchMax(), env.GetWritesPerShard(), env.GetBatchEvery())
+	var wg sync.WaitGroup
+	p.Start(context.Background(), &wg)
+	report.QueueDepth = p.QueueDepth
+
 	go report.Run(context.Background(), st.Active)
-	go mqtt.Connect(st)
+	mqtt.ConnectAll(env.GetIngestConns(), mqtt.NewMessageHandler(p))
 
 	app := fiber.New(fiber.Config{
 		AppName:               "IoT Ingester",

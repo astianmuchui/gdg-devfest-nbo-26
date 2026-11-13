@@ -7,18 +7,18 @@ import (
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 
 	"github.com/astianmuchui/supersimpleingestor/internal/env"
-	"github.com/astianmuchui/supersimpleingestor/internal/store"
 )
 
-var Client pahomqtt.Client
+func ConnectAll(n int, h pahomqtt.MessageHandler) {
+	for i := 0; i < n; i++ {
+		go connectOne(fmt.Sprintf("%s-%d", env.GetMQTTClientID(), i), h)
+	}
+}
 
-func Connect(st store.Store) pahomqtt.Client {
-	broker := env.GetMQTTBroker()
-	port := env.GetMQTTPort()
-
+func connectOne(id string, h pahomqtt.MessageHandler) pahomqtt.Client {
 	opts := pahomqtt.NewClientOptions()
-	opts.AddBroker(fmt.Sprintf("mqtt://%s:%d", broker, port))
-	opts.SetClientID(env.GetMQTTClientID())
+	opts.AddBroker(fmt.Sprintf("mqtt://%s:%d", env.GetMQTTBroker(), env.GetMQTTPort()))
+	opts.SetClientID(id)
 
 	if u := env.GetMQTTUsername(); u != "" {
 		opts.SetUsername(u)
@@ -32,15 +32,12 @@ func Connect(st store.Store) pahomqtt.Client {
 
 	opts.OnConnect = onConnect
 	opts.OnConnectionLost = onConnectionLost
-	opts.SetDefaultPublishHandler(newMessageHandler(st))
+	opts.SetDefaultPublishHandler(h)
 
 	client := pahomqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		fmt.Fprintf(os.Stderr, "MQTT connect error: %v\n", token.Error())
-		return client
+		fmt.Fprintf(os.Stderr, "MQTT connect error [%s]: %v\n", id, token.Error())
 	}
-
-	Client = client
 	return client
 }
 

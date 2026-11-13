@@ -58,3 +58,18 @@ func GetCassandraPassword() string { return os.Getenv("IOT_CASSANDRA_PASSWORD") 
 func GetStallAfter() time.Duration { return dur("IOT_STALL_AFTER", 60*time.Second) }
 func GetStallFor() time.Duration   { return dur("IOT_STALL_FOR", 0) }
 func GetStallDelay() time.Duration { return dur("IOT_STALL_DELAY", 2*time.Second) }
+
+func GetIngestConns() int          { return num("IOT_INGEST_CONNS", 4) }
+func GetShareGroup() string        { return str("IOT_SHARE_GROUP", "ingest") }
+func GetShards() int               { return num("IOT_SHARDS", 8) }
+func GetQueueDepth() int           { return num("IOT_QUEUE_DEPTH", 10000) }
+func GetBatchMax() int             { return num("IOT_BATCH_MAX", 500) }
+func GetBatchEvery() time.Duration { return dur("IOT_BATCH_EVERY", 250*time.Millisecond) }
+func GetWritesPerShard() int       { return num("IOT_WRITES_PER_SHARD", 32) }
+
+func GetMQTTSubTopic() string {
+	if g := GetShareGroup(); g != "" {
+		return "$share/" + g + "/" + GetMQTTTopic()
+	}
+	return GetMQTTTopic()
+}

@@ -9,6 +9,7 @@ import (
 
 type Store interface {
 	Save(ctx context.Context, rec scylla.TelemetryRecord) error
+	SaveBatch(ctx context.Context, rows []scylla.TelemetryRecord) error
 }
 
 type Scylla struct{}
@@ -18,4 +19,14 @@ func (Scylla) Save(ctx context.Context, rec scylla.TelemetryRecord) error {
 		return fmt.Errorf("scylla not connected")
 	}
 	return scylla.LogTelemetry(scylla.Session, rec)
+}
+
+func (Scylla) SaveBatch(ctx context.Context, rows []scylla.TelemetryRecord) error {
+	if scylla.Session == nil {
+		return fmt.Errorf("scylla not connected")
+	}
+	if len(rows) == 1 {
+		return scylla.LogTelemetry(scylla.Session, rows[0])
+	}
+	return scylla.LogTelemetryBatch(ctx, scylla.Session, rows)
 }

@@ -1,14 +1,12 @@
 package mqtt
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/astianmuchui/supersimpleingestor/internal/scylla"
-	"github.com/astianmuchui/supersimpleingestor/internal/store"
 )
 
 type readingsPayload struct {
@@ -23,10 +21,10 @@ type readingsPayload struct {
 	} `json:"environment"`
 }
 
-func handleReadings(ctx context.Context, st store.Store, topic string, raw []byte) error {
+func parseReading(topic string, raw []byte) (scylla.TelemetryRecord, error) {
 	var p readingsPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
-		return fmt.Errorf("handleReadings: %w", err)
+		return scylla.TelemetryRecord{}, fmt.Errorf("parseReading: %w", err)
 	}
 
 	if p.DeviceID == "" {
@@ -36,10 +34,10 @@ func handleReadings(ctx context.Context, st store.Store, topic string, raw []byt
 		}
 	}
 	if p.DeviceID == "" {
-		return fmt.Errorf("handleReadings: missing device_id")
+		return scylla.TelemetryRecord{}, fmt.Errorf("parseReading: missing device_id")
 	}
 
-	rec := scylla.TelemetryRecord{
+	return scylla.TelemetryRecord{
 		DeviceID:      p.DeviceID,
 		CreatedAt:     time.Now().UTC(),
 		DeviceTS:      p.Timestamp,
@@ -48,10 +46,5 @@ func handleReadings(ctx context.Context, st store.Store, topic string, raw []byt
 		HumidityPct:   max(p.Environment.HumidityPct, 0),
 		AirQualityPPM: max(p.Environment.AirQualityPPM, 0),
 		AirQualityV:   max(p.Environment.AirQualityV, 0),
-	}
-
-	if err := st.Save(ctx, rec); err != nil {
-		return fmt.Errorf("handleReadings save: %w", err)
-	}
-	return nil
+	}, nil
 }

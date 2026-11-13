@@ -1,6 +1,7 @@
 package scylla
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -8,6 +9,8 @@ import (
 )
 
 const selectColumns = `device_id, created_at, device_ts, uptime_s, temp_c, humidity_pct, air_quality_ppm, air_quality_v`
+
+const insertTelemetry = `INSERT INTO telemetry (` + selectColumns + `) VALUES (?,?,?,?,?,?,?,?)`
 
 func scanAll(iter *gocql.Iter) ([]TelemetryRecord, error) {
 	results := []TelemetryRecord{}
@@ -23,12 +26,19 @@ func LogTelemetry(session *gocql.Session, r TelemetryRecord) error {
 	if r.CreatedAt.IsZero() {
 		r.CreatedAt = time.Now().UTC()
 	}
-	return session.Query(`
-		INSERT INTO telemetry (`+selectColumns+`)
-		VALUES (?,?,?,?,?,?,?,?)`,
+	return session.Query(insertTelemetry,
 		r.DeviceID, r.CreatedAt, r.DeviceTS, r.UptimeS,
 		r.TempC, r.HumidityPct, r.AirQualityPPM, r.AirQualityV,
 	).Exec()
+}
+
+func LogTelemetryBatch(ctx context.Context, s *gocql.Session, rows []TelemetryRecord) error {
+	b := s.NewBatch(gocql.UnloggedBatch).WithContext(ctx)
+	for _, r := range rows {
+		b.Query(insertTelemetry, r.DeviceID, r.CreatedAt, r.DeviceTS, r.UptimeS,
+			r.TempC, r.HumidityPct, r.AirQualityPPM, r.AirQualityV)
+	}
+	return s.ExecuteBatch(b)
 }
 
 func GetLatestTelemetry(session *gocql.Session, deviceID string) (TelemetryRecord, error) {
