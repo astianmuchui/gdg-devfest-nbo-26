@@ -1,12 +1,14 @@
 package mqtt
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/astianmuchui/supersimpleingestor/internal/scylla"
+	"github.com/astianmuchui/supersimpleingestor/internal/store"
 )
 
 type readingsPayload struct {
@@ -21,7 +23,7 @@ type readingsPayload struct {
 	} `json:"environment"`
 }
 
-func handleReadings(topic string, raw []byte) error {
+func handleReadings(ctx context.Context, st store.Store, topic string, raw []byte) error {
 	var p readingsPayload
 	if err := json.Unmarshal(raw, &p); err != nil {
 		return fmt.Errorf("handleReadings: %w", err)
@@ -48,13 +50,8 @@ func handleReadings(topic string, raw []byte) error {
 		AirQualityV:   max(p.Environment.AirQualityV, 0),
 	}
 
-	if scylla.Session == nil {
-		return fmt.Errorf("handleReadings: scylla not connected")
+	if err := st.Save(ctx, rec); err != nil {
+		return fmt.Errorf("handleReadings save: %w", err)
 	}
-	if err := scylla.LogTelemetry(scylla.Session, rec); err != nil {
-		return fmt.Errorf("handleReadings log: %w", err)
-	}
-
-	fmt.Printf("MQTT [%s]: stored temp=%.2f humidity=%.2f air_quality=%.1f\n", topic, rec.TempC, rec.HumidityPct, rec.AirQualityPPM)
 	return nil
 }

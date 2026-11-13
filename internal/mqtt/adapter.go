@@ -7,11 +7,12 @@ import (
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 
 	"github.com/astianmuchui/supersimpleingestor/internal/env"
+	"github.com/astianmuchui/supersimpleingestor/internal/store"
 )
 
 var Client pahomqtt.Client
 
-func Connect() pahomqtt.Client {
+func Connect(st store.Store) pahomqtt.Client {
 	broker := env.GetMQTTBroker()
 	port := env.GetMQTTPort()
 
@@ -31,7 +32,7 @@ func Connect() pahomqtt.Client {
 
 	opts.OnConnect = onConnect
 	opts.OnConnectionLost = onConnectionLost
-	opts.SetDefaultPublishHandler(messageHandler)
+	opts.SetDefaultPublishHandler(newMessageHandler(st))
 
 	client := pahomqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {

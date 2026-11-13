@@ -3,6 +3,7 @@ package env
 import (
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/joho/godotenv"
@@ -31,6 +32,14 @@ func num(key string, def int) int {
 	return p
 }
 
+func dur(key string, def time.Duration) time.Duration {
+	d, err := time.ParseDuration(os.Getenv(key))
+	if err != nil {
+		return def
+	}
+	return d
+}
+
 func GetHttpListenPort() int { return num("IOT_PORT", DEFAULT_PORT) }
 
 func GetMQTTBroker() string   { return str("IOT_MQTT_BROKER", "localhost") }
@@ -45,3 +54,7 @@ func GetCassandraPort() int        { return num("IOT_CASSANDRA_PORT", 9042) }
 func GetCassandraKeyspace() string { return str("IOT_CASSANDRA_KEYSPACE", "iot") }
 func GetCassandraUsername() string { return os.Getenv("IOT_CASSANDRA_USERNAME") }
 func GetCassandraPassword() string { return os.Getenv("IOT_CASSANDRA_PASSWORD") }
+
+func GetStallAfter() time.Duration { return dur("IOT_STALL_AFTER", 60*time.Second) }
+func GetStallFor() time.Duration   { return dur("IOT_STALL_FOR", 0) }
+func GetStallDelay() time.Duration { return dur("IOT_STALL_DELAY", 2*time.Second) }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
@@ -11,8 +12,10 @@ import (
 
 	"github.com/astianmuchui/supersimpleingestor/internal/env"
 	"github.com/astianmuchui/supersimpleingestor/internal/mqtt"
+	"github.com/astianmuchui/supersimpleingestor/internal/report"
 	"github.com/astianmuchui/supersimpleingestor/internal/routes"
 	"github.com/astianmuchui/supersimpleingestor/internal/scylla"
+	"github.com/astianmuchui/supersimpleingestor/internal/store"
 )
 
 func main() {
@@ -22,10 +25,17 @@ func main() {
 		log.Warnf("ScyllaDB unavailable: %v", err)
 	}
 
-	go mqtt.Connect()
+	st := store.NewStall(store.Scylla{}, env.GetStallAfter(), env.GetStallFor(), env.GetStallDelay())
+	if st.For > 0 {
+		log.Infof("stall: after %s, for %s, +%s per write", st.After, st.For, st.Delay)
+	}
+
+	go report.Run(context.Background(), st.Active)
+	go mqtt.Connect(st)
 
 	app := fiber.New(fiber.Config{
-		AppName: "IoT Ingester",
+		AppName:               "IoT Ingester",
+		DisableStartupMessage: true,
 	})
 
 	app.Use(logger.New())

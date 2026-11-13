@@ -1,11 +1,14 @@
 package mqtt
 
 import (
+	"context"
 	"fmt"
 
 	pahomqtt "github.com/eclipse/paho.mqtt.golang"
 
 	"github.com/astianmuchui/supersimpleingestor/internal/env"
+	"github.com/astianmuchui/supersimpleingestor/internal/report"
+	"github.com/astianmuchui/supersimpleingestor/internal/store"
 )
 
 var onConnect pahomqtt.OnConnectHandler = func(client pahomqtt.Client) {
@@ -17,8 +20,18 @@ var onConnectionLost pahomqtt.ConnectionLostHandler = func(client pahomqtt.Clien
 	fmt.Printf("MQTT: connection lost: %v\n", err)
 }
 
-var messageHandler pahomqtt.MessageHandler = func(client pahomqtt.Client, msg pahomqtt.Message) {
-	if err := handleReadings(msg.Topic(), msg.Payload()); err != nil {
-		fmt.Printf("MQTT handler error [%s]: %v\n", msg.Topic(), err)
+func newMessageHandler(st store.Store) pahomqtt.MessageHandler {
+	return func(client pahomqtt.Client, msg pahomqtt.Message) {
+		report.Received.Add(1)
+		report.InFlight.Add(1)
+
+		go func() {
+			defer report.InFlight.Add(-1)
+			if err := handleReadings(context.Background(), st, msg.Topic(), msg.Payload()); err != nil {
+				report.Fail(err)
+				return
+			}
+			report.Stored.Add(1)
+		}()
 	}
 }
